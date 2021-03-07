@@ -1,0 +1,6 @@
+I don't want to include the data in my version of this repo.
+
+Get the data from the original assignment repo:
+https://github.com/udacity/SFND_Lidar_Obstacle_Detection.git
+
+Follow the same relative path as the directory this txt file is in.
