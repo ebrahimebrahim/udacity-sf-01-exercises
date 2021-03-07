@@ -143,6 +143,52 @@ Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Pt
 
 
 template<typename PointT>
+BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(typename pcl::PointCloud<PointT>::Ptr cluster)
+{
+
+    const auto & pts = cluster->points;
+    Eigen::Matrix<float,Eigen::Dynamic,2> pts_mat(pts.size(),2);
+    Eigen::Vector3f centroid = Eigen::Vector3f::Zero();
+    for (const auto & pt : pts) centroid += pt.getVector3fMap();
+    centroid /= float(pts.size());
+    for (int row = 0; row < pts.size(); ++row) {
+        auto q = pts[row].getVector3fMap() - centroid;
+        pts_mat(row,0) = q[0];
+        pts_mat(row,1) = q[1];
+    }
+    Eigen::EigenSolver<Eigen::Matrix2f> es;
+    es.compute(pts_mat.transpose() * pts_mat);
+    Eigen::Matrix2f ev = es.eigenvectors().real();
+    std::cout << ev << "\n\n";
+    auto pts_tnsfm = pts_mat * ev.inverse().transpose();
+
+    PointT minPoint, maxPoint;
+    pcl::getMinMax3D(*cluster, minPoint, maxPoint);
+
+    float x1 = pts_tnsfm.col(0).minCoeff();
+    float x2 = pts_tnsfm.col(0).maxCoeff();
+    float y1 = pts_tnsfm.col(1).minCoeff();
+    float y2 = pts_tnsfm.col(1).maxCoeff();
+    float z1 = minPoint.z - centroid[2];
+    float z2 = maxPoint.z - centroid[2];
+
+    Eigen::Vector2f xy_center = ev * Eigen::Vector2f((x1+x2)/2.0 , (y1+y2)/2.0);
+    
+
+    BoxQ box;
+    box.cube_length = x2-x1;
+    box.cube_width = y2-y1;
+    box.cube_height = z2 - z1;
+    box.bboxTransform = centroid + Eigen::Vector3f(xy_center[0] , xy_center[1] , (z1 + z2)/2.0);
+    box.bboxQuaternion = Eigen::Quaternionf( Eigen::AngleAxisf(atan2(ev(1,0),ev(0,0)), Eigen::Vector3f::UnitZ()) );
+
+    std::cout << atan2(ev(1,0),ev(0,0)) * 180/3.14159 << std::endl;
+
+    return box;
+}
+
+
+template<typename PointT>
 void ProcessPointClouds<PointT>::savePcd(typename pcl::PointCloud<PointT>::Ptr cloud, std::string file)
 {
     pcl::io::savePCDFileASCII (file, *cloud);
