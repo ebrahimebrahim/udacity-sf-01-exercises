@@ -159,7 +159,6 @@ BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(typename pcl::PointCloud<PointT>::
     Eigen::EigenSolver<Eigen::Matrix2f> es;
     es.compute(pts_mat.transpose() * pts_mat);
     Eigen::Matrix2f ev = es.eigenvectors().real();
-    std::cout << ev << "\n\n";
     auto pts_tnsfm = pts_mat * ev.inverse().transpose();
 
     PointT minPoint, maxPoint;
@@ -181,8 +180,6 @@ BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(typename pcl::PointCloud<PointT>::
     box.cube_height = z2 - z1;
     box.bboxTransform = centroid + Eigen::Vector3f(xy_center[0] , xy_center[1] , (z1 + z2)/2.0);
     box.bboxQuaternion = Eigen::Quaternionf( Eigen::AngleAxisf(atan2(ev(1,0),ev(0,0)), Eigen::Vector3f::UnitZ()) );
-
-    std::cout << atan2(ev(1,0),ev(0,0)) * 180/3.14159 << std::endl;
 
     return box;
 }
