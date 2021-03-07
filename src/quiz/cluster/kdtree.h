@@ -17,6 +17,19 @@ struct Node
 	{}
 };
 
+void insert_recurse(Node* & node, int depth, const std::vector<float> & point, int id) {
+	if (node==NULL){
+		node = new Node(point, id);
+	}
+	else {
+		auto comparison_dim = depth % point.size();
+		if (point[comparison_dim] < node->point[comparison_dim])
+			insert_recurse(node->left, depth+1, point, id);
+		else
+			insert_recurse(node->right, depth+1, point, id);
+	}
+}
+
 struct KdTree
 {
 	Node* root;
@@ -29,6 +42,7 @@ struct KdTree
 	{
 		// TODO: Fill in this function to insert a new point into the tree
 		// the function should create a new node and place correctly with in the root 
+		insert_recurse(root,0,point,id);
 
 	}
 
