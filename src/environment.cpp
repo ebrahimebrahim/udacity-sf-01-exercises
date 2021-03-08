@@ -78,9 +78,20 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer)
 {
     
     ProcessPointClouds<pcl::PointXYZI> process_point_clouds{};
+
     auto cloud = process_point_clouds.loadPcd("../src/sensors/data/pcd/data_1/0000000000.pcd");
+    
     auto filtered_cloud = process_point_clouds.FilterCloud(cloud, 0.4, Eigen::Vector4f(-20,-15,-5,1),Eigen::Vector4f(40,15,5,1));
-    renderPointCloud(viewer, filtered_cloud, "cloud");
+    // renderPointCloud(viewer, filtered_cloud, "cloud");
+    
+    auto seg_pair = process_point_clouds.SegmentPlane(filtered_cloud,100,0.2);
+    auto cloud_noad = seg_pair.first;
+    auto cloud_road = seg_pair.second;
+
+    renderPointCloud(viewer, cloud_noad, "noad",Color(1,0,1));
+    renderPointCloud(viewer, cloud_road, "road",Color(1,1,1));
+    
+    
 
 }
 
