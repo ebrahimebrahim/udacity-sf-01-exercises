@@ -79,7 +79,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     
     // renderPointCloud(viewer, cloud, "cloud_original",Color(0.5,0.5,0.5));
     
-    auto filtered_cloud = process_point_clouds->FilterCloud(cloud, 0.4, Eigen::Vector4f(-15,-7,-3,1),Eigen::Vector4f(35,7,5,1));
+    auto filtered_cloud = process_point_clouds->FilterCloud(cloud, 0.2, Eigen::Vector4f(-15,-7,-3,1),Eigen::Vector4f(35,7,5,1));
     // renderPointCloud(viewer, filtered_cloud, "cloud");
     
     auto seg_pair = process_point_clouds->SegmentPlane(filtered_cloud,50,0.2);
@@ -88,7 +88,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     // renderPointCloud(viewer, cloud_noad, "noad",Color(0.3,0.3,0.3));
     renderPointCloud(viewer, cloud_road, "road",Color(1,1,1));
     
-    auto clusters = process_point_clouds->Clustering(cloud_noad,0.5, 4, 9999);
+    auto clusters = process_point_clouds->Clustering(cloud_noad,0.5, 6, 9999);
     std::vector<Color> colors = {Color(1,0,0), Color(0,1,0), Color(0,0,1), Color(1,1,0), Color(0,1,1), Color(1,0,1)};
     for (int i=0; i<clusters.size(); ++i){
         const Color & color = colors[i%colors.size()];

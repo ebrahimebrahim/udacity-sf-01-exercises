@@ -20,15 +20,22 @@ void ProcessPointClouds<PointT>::numPoints(typename pcl::PointCloud<PointT>::Ptr
     std::cout << cloud->points.size() << std::endl;
 }
 
+template<typename PointT>
+typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::DownsampleCloud(typename pcl::PointCloud<PointT>::Ptr cloud, float filterRes)
+{
+    typename pcl::PointCloud<PointT>::Ptr filtered_cloud{new pcl::PointCloud<PointT>};
+
+    pcl::VoxelGrid<PointT> sor;
+    sor.setInputCloud(cloud);
+    sor.setLeafSize(filterRes,filterRes,filterRes);
+    sor.filter(*filtered_cloud);
+
+    return filtered_cloud;
+}
 
 template<typename PointT>
-typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(typename pcl::PointCloud<PointT>::Ptr cloud, float filterRes, Eigen::Vector4f minPoint, Eigen::Vector4f maxPoint)
+typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::CropCloud(typename pcl::PointCloud<PointT>::Ptr cloud, Eigen::Vector4f minPoint, Eigen::Vector4f maxPoint)
 {
-
-    // Time segmentation process
-    auto startTime = std::chrono::steady_clock::now();
-
-    // TODO:: Fill in the function to do voxel grid point reduction and region based filtering
     typename pcl::PointCloud<PointT>::Ptr filtered_cloud{new pcl::PointCloud<PointT>};
  
     pcl::CropBox<PointT> cb;
@@ -37,16 +44,22 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     cb.setInputCloud(cloud);
     cb.filter(*filtered_cloud);
 
+    // Remove roof points
     cb.setMin(Eigen::Vector4f(-2.75,-1.5,-1.5,1));
     cb.setMax(Eigen::Vector4f(2.75,1.5,0.5,1));
     cb.setInputCloud(filtered_cloud);
     cb.setNegative(true);
     cb.filter(*filtered_cloud);
 
-    pcl::VoxelGrid<PointT> sor;
-    sor.setInputCloud(filtered_cloud);
-    sor.setLeafSize(filterRes,filterRes,filterRes);
-    sor.filter(*filtered_cloud);
+    return filtered_cloud;
+}
+
+template<typename PointT>
+typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(typename pcl::PointCloud<PointT>::Ptr cloud, float filterRes, Eigen::Vector4f minPoint, Eigen::Vector4f maxPoint)
+{
+    auto startTime = std::chrono::steady_clock::now();
+
+    auto filtered_cloud = DownsampleCloud( CropCloud(cloud,minPoint,maxPoint), filterRes );
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
@@ -96,8 +109,12 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     Eigen::Vector3f best_p1, best_p2, best_p3;
 	int most_inliers = 0;
 
+    // Downsample cloud just for the purpose of fitting a plane
+    auto dcloud = DownsampleCloud(cloud, 3.0);
+
+    // Turn all cloud points into Eigen library vectors
     std::vector<Eigen::Vector3f> pts;
-    for (const auto & pt : cloud->points)
+    for (const auto & pt : dcloud->points)
         pts.push_back(pt_to_vec<PointT>(pt));
 
 	for (int j=0; j<maxIterations; ++j){
@@ -127,17 +144,17 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
 		}
 
         // If there are "enough"  inliers already, then stop iterating
-        if (float(most_inliers)/float(cloud->points.size()) > 0.75)
+        if (float(most_inliers)/float(dcloud->points.size()) > 0.9)
             break;
 
 	}
 
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
 	for (int i=0; i<cloud->points.size(); ++i)
-		if (dist_pt_to_plane(pts[i], best_p1, best_p2, best_p3) < distanceThreshold)
+		if (dist_pt_to_plane(pt_to_vec(cloud->points[i]), best_p1, best_p2, best_p3) < distanceThreshold)
 			inliers->indices.push_back(i);
 
-    std::cout << float(most_inliers)/float(cloud->points.size()) << " of segmented pts are inliers\n";
+    std::cout << float(most_inliers)/float(dcloud->points.size()) << " of segmented pts are inliers\n";
 	
     
     auto endTime = std::chrono::steady_clock::now();
