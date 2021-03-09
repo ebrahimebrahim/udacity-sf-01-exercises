@@ -83,12 +83,12 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     // renderPointCloud(viewer, filtered_cloud, "cloud");
     
     auto seg_pair = process_point_clouds->SegmentPlane(filtered_cloud,50,0.2);
-    auto cloud_noad = seg_pair.first;
+    auto cloud_noad = seg_pair.first; // noad means "not road"
     auto cloud_road = seg_pair.second;
     // renderPointCloud(viewer, cloud_noad, "noad",Color(0.3,0.3,0.3));
     renderPointCloud(viewer, cloud_road, "road",Color(1,1,1));
     
-    auto clusters = process_point_clouds->Clustering(cloud_noad,0.5, 6, 9999);
+    auto clusters = process_point_clouds->Clustering(cloud_noad,0.5, 8, 9999);
     std::vector<Color> colors = {Color(1,0,0), Color(0,1,0), Color(0,0,1), Color(1,1,0), Color(0,1,1), Color(1,0,1)};
     for (int i=0; i<clusters.size(); ++i){
         const Color & color = colors[i%colors.size()];
@@ -98,7 +98,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         // BoxQ box = process_point_clouds->BoundingBoxQ(clusters[i]);
         Box box = process_point_clouds->BoundingBox(clusters[i]);
 
-        // renderBox(viewer,box,i,color);
+        renderBox(viewer,box,i,color);
     }
 
 }

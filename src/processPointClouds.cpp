@@ -168,32 +168,49 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
 
 
 template<typename PointT>
+static void proximity_recurse(typename pcl::PointCloud<PointT>::Ptr cloud, const KdTree* tree, float distanceTol, int point_index, std::vector<int> & cluster, std::vector<bool> & processed) {
+	processed[point_index] = true;
+	cluster.push_back(point_index);
+	for (auto j : tree->search({cloud->points[point_index].x, cloud->points[point_index].y, cloud->points[point_index].z},distanceTol)) 
+		if (!processed[j])
+			proximity_recurse<PointT>(cloud, tree, distanceTol, j, cluster, processed);
+}
+
+template<typename PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::Clustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize)
 {
 
     // Time clustering process
     auto startTime = std::chrono::steady_clock::now();
 
-    std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
-    std::vector<pcl::PointIndices> clusters_indices;
+    KdTree* tree = new KdTree;
+  
+    for (int i=0; i<cloud->points.size(); i++) 
+    	tree->insert({cloud->points[i].x, cloud->points[i].y, cloud->points[i].z}, i);
 
-    // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
-    typename pcl::search::KdTree<PointT>::Ptr tree{new pcl::search::KdTree<PointT>};
-    tree->setInputCloud(cloud);
-    pcl::EuclideanClusterExtraction<PointT> ec;
-    ec.setClusterTolerance(clusterTolerance);
-    ec.setMinClusterSize(minSize);
-    ec.setMaxClusterSize(maxSize);
-    ec.setSearchMethod(tree);
-    ec.setInputCloud(cloud);
-    ec.extract(clusters_indices);
+    std::vector<std::vector<int>> clusters_indices;
+
+	std::vector<bool> processed(cloud->points.size(),false);
+	for (int i=0; i< cloud->points.size(); ++i) {
+		if (processed[i])
+			continue;
+		std::vector<int> cluster{};
+		proximity_recurse<PointT>(cloud, tree, clusterTolerance, i, cluster, processed);
+		clusters_indices.push_back(cluster);
+	}	
+    
+    std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
     for (auto & cluster_indices : clusters_indices) {
+        if ((cluster_indices.size() < minSize) || (cluster_indices.size() > maxSize))
+            continue;
         typename pcl::PointCloud<PointT>::Ptr cluster{new pcl::PointCloud<PointT>};
-        for (auto index : cluster_indices.indices){
+        for (auto index : cluster_indices){
             cluster->push_back((*cloud)[index]);
         }
         clusters.push_back(cluster);
     }
+
+    delete tree;
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
