@@ -1,6 +1,7 @@
 // PCL lib Functions for processing point clouds 
 
 #include "processPointClouds.h"
+#include <unordered_set>
 
 
 //constructor:
@@ -73,28 +74,75 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     return segResult;
 }
 
+// Converts a point that has x,y,z members to an Eigen library vector
+template<typename PointT>
+Eigen::Vector3f pt_to_vec(const PointT & pt) {
+    return Eigen::Vector3f(pt.x, pt.y, pt.z);
+}
+
+// Should give the distance from pt to the plane containing p1, p2, and p3
+// This assumes that the type PointT has at least 3 components to access via operator[]
+template<typename PointT>
+float dist_pt_to_plane(const PointT &  pt, const PointT & p1, const PointT & p2, const PointT & p3) {
+	const auto p1v = pt_to_vec(p1);
+	const auto p2v = pt_to_vec(p2);
+	const auto p3v = pt_to_vec(p3);
+	const auto ptv = pt_to_vec(pt);
+	auto normal = (p2v - p1v).cross(p3v - p1v);
+	return fabs(normal.dot(ptv-p1v))/normal.norm();
+}
 
 template<typename PointT>
 std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::SegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold)
 {
     // Time segmentation process
     auto startTime = std::chrono::steady_clock::now();
-	pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-    // TODO:: Fill in this function to find inliers for the cloud.
-    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-    pcl::SACSegmentation<PointT> seg;
-    seg.setOptimizeCoefficients(true);
-    seg.setModelType(pcl::SACMODEL_PLANE);
-    seg.setMethodType(pcl::SAC_RANSAC);
-    seg.setDistanceThreshold(distanceThreshold);
-    seg.setMaxIterations(maxIterations);
-    seg.setInputCloud(cloud);
-    seg.segment(*inliers, *coefficients);
-    if (inliers->indices.size() == 0)
-        std::cerr << "Could not estimate a planar model.\n";
+
+	srand(time(NULL));
+
+	PointT best_p1, best_p2, best_p3;
+	int most_inliers = 0;
+
+	for (int j=0; j<maxIterations; ++j){
+		
+		// Choose three random distinct indices
+		std::unordered_set<int> initial_indices{};
+		while(initial_indices.size() < 3)
+			initial_indices.insert(rand() % cloud->points.size());
+
+		auto itr = initial_indices.begin();
+		const PointT & p1 = cloud->points[*itr];
+		++itr;
+		const PointT & p2 = cloud->points[*itr];
+		++itr;
+		const PointT & p3 = cloud->points[*itr];
+
+		int num_inliers = 0;
+		for (auto & point : cloud->points){
+			if (dist_pt_to_plane(point, p1, p2, p3) < distanceThreshold)
+				num_inliers++;
+		}
+		if (num_inliers > most_inliers){
+			most_inliers = num_inliers;
+			best_p1 = p1;
+			best_p2 = p2;
+			best_p3 = p3;
+		}
+
+        // If there are "enough"  inliers already, then stop iterating
+        if (float(most_inliers)/float(cloud->points.size()) > 0.75)
+            break;
+
+	}
+
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+	for (int i=0; i<cloud->points.size(); ++i)
+		if (dist_pt_to_plane(cloud->points[i], best_p1, best_p2, best_p3) < distanceThreshold)
+			inliers->indices.push_back(i);
+
+    std::cout << float(most_inliers)/float(cloud->points.size()) << " of segmented pts are inliers\n";
+	
     
-
-
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "plane segmentation took " << elapsedTime.count() << " milliseconds" << std::endl;
