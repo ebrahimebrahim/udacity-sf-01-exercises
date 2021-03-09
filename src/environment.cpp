@@ -79,20 +79,20 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     
     // renderPointCloud(viewer, cloud, "cloud_original",Color(0.5,0.5,0.5));
     
-    auto filtered_cloud = process_point_clouds->FilterCloud(cloud, 0.5, Eigen::Vector4f(-15,-7,-3,1),Eigen::Vector4f(35,7,5,1));
+    auto filtered_cloud = process_point_clouds->FilterCloud(cloud, 0.4, Eigen::Vector4f(-15,-7,-3,1),Eigen::Vector4f(35,7,5,1));
     // renderPointCloud(viewer, filtered_cloud, "cloud");
     
     auto seg_pair = process_point_clouds->SegmentPlane(filtered_cloud,50,0.2);
     auto cloud_noad = seg_pair.first;
     auto cloud_road = seg_pair.second;
-    renderPointCloud(viewer, cloud_noad, "noad",Color(1,0,1));
+    // renderPointCloud(viewer, cloud_noad, "noad",Color(0.3,0.3,0.3));
     renderPointCloud(viewer, cloud_road, "road",Color(1,1,1));
     
-    auto clusters = process_point_clouds->Clustering(cloud_noad,0.5, 6, 9999);
+    auto clusters = process_point_clouds->Clustering(cloud_noad,0.5, 4, 9999);
     std::vector<Color> colors = {Color(1,0,0), Color(0,1,0), Color(0,0,1), Color(1,1,0), Color(0,1,1), Color(1,0,1)};
     for (int i=0; i<clusters.size(); ++i){
         const Color & color = colors[i%colors.size()];
-        // renderPointCloud(viewer, clusters[i], "obstacle_"+std::to_string(i),color);
+        renderPointCloud(viewer, clusters[i], "obstacle_"+std::to_string(i),color);
 
         // Uncomment one of the following two lines to choose a bounding box type
         // BoxQ box = process_point_clouds->BoundingBoxQ(clusters[i]);
@@ -139,7 +139,7 @@ int main (int argc, char** argv)
 
     ProcessPointClouds<pcl::PointXYZI> * process_point_clouds = new ProcessPointClouds<pcl::PointXYZI>;
 
-    std::vector<boost::filesystem::path> stream = process_point_clouds->streamPcd("../src/sensors/data/pcd/data_2");
+    std::vector<boost::filesystem::path> stream = process_point_clouds->streamPcd("../src/sensors/data/pcd/data_1");
     auto streamIterator = stream.begin();
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
 
