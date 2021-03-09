@@ -15,9 +15,21 @@ struct Node
 	Node(std::vector<float> arr, int setId)
 	:	point(arr), id(setId), left(NULL), right(NULL)
 	{}
+
+	// Destroying a node cleans up all its descendants
+	~Node() {
+		if (left!=NULL) { 
+			delete left;
+			left=NULL;
+		}
+		if (right!=NULL) {
+			delete right;
+			right=NULL;
+		}
+	}
 };
 
-void insert_recurse(Node* & node, int depth, const std::vector<float> & point, int id) {
+static void insert_recurse(Node* & node, int depth, const std::vector<float> & point, int id) {
 	if (node==NULL){
 		node = new Node(point, id);
 	}
@@ -30,9 +42,9 @@ void insert_recurse(Node* & node, int depth, const std::vector<float> & point, i
 	}
 }
 
-// This is currently set up for 2D points.
-// For 3D points, change Eigen::Vector2f to Eigen::Vector3f
-void search_recurse(const Node * node, std::vector<int> & ids, int depth, const std::vector<float> & target, float distanceTol) {
+// This is currently set up for 3D points.
+// For 3D points, change Eigen::Vector3f to Eigen::Vector2f
+static void search_recurse(const Node * node, std::vector<int> & ids, int depth, const std::vector<float> & target, float distanceTol) {
 	if (node==NULL) return;
 	auto comparison_dim = depth % target.size();
 	bool within_left = (node->point[comparison_dim] > target[comparison_dim]-distanceTol);
@@ -47,7 +59,7 @@ void search_recurse(const Node * node, std::vector<int> & ids, int depth, const 
 			}
 		}
 		if (within_box) {
-			if ((Eigen::Vector2f(target.data()) - Eigen::Vector2f(node->point.data())).squaredNorm() < distanceTol*distanceTol)
+			if ((Eigen::Vector3f(target.data()) - Eigen::Vector3f(node->point.data())).squaredNorm() < distanceTol*distanceTol)
 				ids.push_back(node->id);
 		}
 	}
@@ -60,8 +72,7 @@ void search_recurse(const Node * node, std::vector<int> & ids, int depth, const 
 }
 
 
-// WARNING: THIS IS MISSING A DESTRUCTOR AT THE MOMENT.
-// The nodes are allocated on the heap, not using smart ptrs. So memory leak right now.
+
 struct KdTree
 {
 	Node* root;
@@ -69,6 +80,15 @@ struct KdTree
 	KdTree()
 	: root(NULL)
 	{}
+
+	~KdTree() {
+		// The nodes are allocated on the heap, not using smart ptrs. So tree needs to recursively clean up the nodes.
+		// Pay attention to the dtor Node::~Node()
+		if (root!=NULL) {
+			delete root;
+			root = NULL;
+		}
+	}
 
 	void insert(std::vector<float> point, int id)
 	{
@@ -85,7 +105,6 @@ struct KdTree
 		search_recurse(root, ids, 0, target, distanceTol);
 		return ids;
 	}
-	
 
 };
 

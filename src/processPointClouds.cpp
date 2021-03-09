@@ -1,6 +1,7 @@
 // PCL lib Functions for processing point clouds 
 
 #include "processPointClouds.h"
+#include "quiz/cluster/kdtree.h"
 #include <unordered_set>
 
 
@@ -144,7 +145,7 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
 		}
 
         // If there are "enough"  inliers already, then stop iterating
-        if (float(most_inliers)/float(dcloud->points.size()) > 0.9)
+        if (float(most_inliers)/float(dcloud->points.size()) > 0.8)
             break;
 
 	}
